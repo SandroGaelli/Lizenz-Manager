@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lizenz- & Vertragsverwaltung mit Reitern</title>
+    <title>Lizenz- & Vertragsverwaltung</title>
     <style>
         body { font-family: 'Segoe UI', Arial, sans-serif; background-color: #f8f9fa; color: #333; margin: 0; padding: 20px; }
         .container { max-width: 100%; margin: 0 auto; }
@@ -31,10 +31,15 @@
 
         /* Dynamisches Formular-Grid */
         .form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin-bottom: 15px; }
-        .form-group { display: flex; flex-direction: column; }
+        .form-group { display: flex; flex-direction: column; justify-content: flex-start; }
         .form-group label { font-size: 12px; font-weight: bold; margin-bottom: 4px; color: #555; }
-        .form-group input, .form-group select { padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; height: 37px; box-sizing: border-box; }
+        .form-group input { padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; height: 37px; box-sizing: border-box; }
         
+        /* 1-10 Jahre Buttons unter Ablaufdatum */
+        .quick-years-container { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 5px; }
+        .btn-year { background: #ebf5fb; border: 1px solid #aec6cf; padding: 3px 5px; font-size: 10px; border-radius: 3px; cursor: pointer; color: #2980b9; font-weight: bold; }
+        .btn-year:hover { background: #3498db; color: white; }
+
         #submitBtn { background-color: #27ae60; color: white; border: none; padding: 12px 25px; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 14px; transition: background 0.2s; width: 100%; max-width: 300px; }
         #submitBtn:hover { opacity: 0.9; }
 
@@ -50,6 +55,9 @@
         
         td { padding: 10px 8px; border-bottom: 1px solid #e0e0e0; word-break: break-word; }
         td[contenteditable="true"]:focus { background-color: #fff !important; outline: 2px solid #3498db; border-radius: 2px; color: #000; }
+
+        /* Hinweistext Sortierung */
+        .info-text { font-size: 12px; color: #7f8c8d; margin-top: -10px; margin-bottom: 15px; font-style: italic; }
 
         /* Farblogik */
         .row-green { background-color: #d4edda !important; color: #155724; }
@@ -81,11 +89,11 @@
 
     <div class="tabs-bar">
         <div id="dynamicTabsContainer" style="display: flex; gap: 5px;"></div>
-        <button class="tab-btn" style="background-color: #2ecc71; color: white;" onclick="promptAddTab()">➕ Neuer Reiter</button>
+        <button class="tab-btn" style="background-color: #2ecc71; color: white;" onclick="promptAddTab()">➕ Neuer Filter-Reiter</button>
         
         <div class="tab-management" id="tabManagementZone" style="display: none;">
-            <button class="btn-tab-ctrl" style="background-color: #e67e22; color:white;" onclick="promptRenameTab()">✏️ Aktuellen Reiter umbenennen</button>
-            <button class="btn-tab-ctrl" style="background-color: #e74c3c; color:white;" onclick="promptDeleteTab()">✖️ Aktuellen Reiter löschen</button>
+            <button class="btn-tab-ctrl" style="background-color: #e67e22; color:white;" onclick="promptRenameTab()">✏️ Reiter umbenennen</button>
+            <button class="btn-tab-ctrl" style="background-color: #e74c3c; color:white;" onclick="promptDeleteTab()">✖️ Reiter löschen</button>
         </div>
     </div>
 
@@ -97,12 +105,14 @@
         <form id="licenseForm">
             <div class="form-grid" id="dynamicFormGrid"></div>
             
-            <button type="submit" id="submitBtn">Eintrag保存 (Speichern)</button>
+            <button type="submit" id="submitBtn">Eintrag speichern</button>
             <button type="button" id="cancelEditBtn" style="display:none; padding: 12px 25px; margin-left: 10px; cursor: pointer;" onclick="cancelEdit()">Abbrechen</button>
         </form>
     </div>
 
     <h2 id="activeTitle">Aktive Lizenzen</h2>
+    <p class="info-text">💡 *Standard-Sortierung: Die am frühesten auslaufenden Lizenzen stehen automatisch ganz oben.*</p>
+    
     <div class="table-responsive">
         <table>
             <thead>
@@ -141,12 +151,11 @@
         { key: 'status', label: 'Status', type: 'text' }
     ];
 
-    // Daten aus Speicher laden
     let columns = JSON.parse(localStorage.getItem('dyn_columns')) || defaultColumns;
-    let licenses = JSON.parse(localStorage.getItem('licenses_v4')) || JSON.parse(localStorage.getItem('licenses_v3')) || [];
-    let customTabs = JSON.parse(localStorage.getItem('dyn_tabs')) || ['Allgemein', 'Veeam', 'Adobe'];
+    let licenses = JSON.parse(localStorage.getItem('licenses_v5')) || JSON.parse(localStorage.getItem('licenses_v4')) || [];
+    let customTabs = JSON.parse(localStorage.getItem('dyn_tabs')) || ['Veeam', 'Adobe', 'Microsoft'];
     
-    let activeTab = 'Alle'; // Standardmäßig "Alle" anzeigen
+    let activeTab = 'Allgemein'; 
     let editModeId = null;
 
     let sortConfig = {
@@ -154,7 +163,7 @@
         expired: { key: 'firma', direction: 'asc' }
     };
 
-    const protectedKeys = ['firma', 'start', 'ende', 'dauer']; 
+    const protectedKeys = ['firma', 'start', 'ende', 'dauer', 'bezeichnung']; 
 
     function init() {
         renderTabsBar();
@@ -164,20 +173,20 @@
         renderAll();
     }
 
-    // ================= REITER LOGIK =================
+    // ================= REITER LOGIK (FILTERUNG NACH BEZEICHNUNG) =================
 
     function renderTabsBar() {
         const container = document.getElementById('dynamicTabsContainer');
         container.innerHTML = '';
 
-        // "Alle"-Tab (Immer vorhanden)
+        // Haupt-Tab "Allgemein" (Zeigt immer alles)
         const btnAll = document.createElement('button');
-        btnAll.className = `tab-btn ${activeTab === 'Alle' ? 'active' : ''}`;
-        btnAll.innerText = '🌐 Alle';
-        btnAll.onclick = () => switchTab('Alle');
+        btnAll.className = `tab-btn ${activeTab === 'Allgemein' ? 'active' : ''}`;
+        btnAll.innerText = '🌐 Allgemein / Alle';
+        btnAll.onclick = () => switchTab('Allgemein');
         container.appendChild(btnAll);
 
-        // Eigene Custom-Tabs zeichnen
+        // Custom Filter-Tabs zeichnen
         customTabs.forEach(tab => {
             const btn = document.createElement('button');
             btn.className = `tab-btn ${activeTab === tab ? 'active' : ''}`;
@@ -186,10 +195,10 @@
             container.appendChild(btn);
         });
 
-        // Einstellungszone für Umbenennen/Löschen einblenden wenn nicht im "Alle"-Tab
+        // Verwaltungszone einblenden
         const mgmtZone = document.getElementById('tabManagementZone');
-        if (activeTab === 'Alle' || activeTab === 'Allgemein') {
-            mgmtZone.style.display = 'none'; // "Alle" und "Allgemein" können nicht gelöscht werden
+        if (activeTab === 'Allgemein') {
+            mgmtZone.style.display = 'none';
         } else {
             mgmtZone.style.display = 'flex';
         }
@@ -199,42 +208,26 @@
         activeTab = tabName;
         renderTabsBar();
         renderAll();
-        // Setzt das Formular-Kategorie-Feld automatisch auf den gerade gewählten Reiter
-        const selectElement = document.getElementById('licTab');
-        if(selectElement && tabName !== 'Alle') {
-            selectElement.value = tabName;
-        }
     }
 
     function promptAddTab() {
-        const name = prompt("Wie soll der neue Reiter heißen? (z.B. Microsoft, Hardware, etc.)");
+        const name = prompt("Gib das Suchwort für den neuen Reiter ein (z.B. Sophos, Acronis):");
         if (!name) return;
         const cleanName = name.trim();
-        if (customTabs.includes(cleanName) || cleanName === 'Alle') {
-            alert("Ein Reiter mit diesem Namen existiert bereits!");
+        if (customTabs.includes(cleanName) || cleanName.toLowerCase() === 'allgemein') {
+            alert("Dieser Reiter existiert bereits!");
             return;
         }
         customTabs.push(cleanName);
         localStorage.setItem('dyn_tabs', JSON.stringify(customTabs));
         switchTab(cleanName);
-        renderDynamicForm(); // Aktualisiert das Dropdown im Formular
     }
 
     function promptRenameTab() {
-        if (activeTab === 'Alle' || activeTab === 'Allgemein') return;
-        const newName = prompt(`Wie soll der Reiter "${activeTab}" stattdessen heißen?`, activeTab);
+        if (activeTab === 'Allgemein') return;
+        const newName = prompt(`Wie soll der Filter-Reiter "${activeTab}" stattdessen heißen?`, activeTab);
         if (!newName) return;
         const cleanName = newName.trim();
-
-        if (customTabs.includes(cleanName) && cleanName !== activeTab) {
-            alert("Dieser Name wird bereits verwendet!");
-            return;
-        }
-
-        // Lizenzen im Hintergrund auf den neuen Namen umschreiben
-        licenses.forEach(lic => {
-            if (lic.tab === activeTab) lic.tab = cleanName;
-        });
 
         const index = customTabs.indexOf(activeTab);
         if (index !== -1) {
@@ -242,69 +235,54 @@
         }
 
         localStorage.setItem('dyn_tabs', JSON.stringify(customTabs));
-        localStorage.setItem('licenses_v4', JSON.stringify(licenses));
-        
         activeTab = cleanName;
         init();
     }
 
     function promptDeleteTab() {
-        if (activeTab === 'Alle' || activeTab === 'Allgemein') return;
-        
-        if (confirm(`Willst du den Reiter "${activeTab}" wirklich löschen?\n\nHINWEIS: Bestehende Lizenzen in diesem Reiter werden NICHT gelöscht, sondern automatisch in den Reiter "Allgemein" verschoben.`)) {
-            
-            // Lizenzen in "Allgemein" retten
-            licenses.forEach(lic => {
-                if (lic.tab === activeTab || !lic.tab) {
-                    lic.tab = 'Allgemein';
-                }
-            });
-
+        if (activeTab === 'Allgemein') return;
+        if (confirm(`Willst du den Filter-Reiter "${activeTab}" entfernen?\n\n(Deine Lizenzen bleiben alle erhalten, da sie über "Allgemein" verwaltet werden).`)) {
             customTabs = customTabs.filter(t => t !== activeTab);
             localStorage.setItem('dyn_tabs', JSON.stringify(customTabs));
-            localStorage.setItem('licenses_v4', JSON.stringify(licenses));
-            
-            activeTab = 'Alle';
+            activeTab = 'Allgemein';
             init();
         }
     }
 
 
-    // ================= FORMULAR LOGIK =================
+    // ================= FORMULAR LOGIK & SCHNELLWAHL =================
 
     function renderDynamicForm() {
         const grid = document.getElementById('dynamicFormGrid');
         grid.innerHTML = '';
 
-        // 1. Zuerst das feste Reiter-Dropdown-Feld einbauen
-        let tabOptions = customTabs.map(t => `<option value="${t}">${t}</option>`).join('');
-        grid.innerHTML += `
-            <div class="form-group" style="background: #ebf5fb; padding: 5px; border-radius: 4px;">
-                <label style="color:#2980b9;">📌 Reiter / Kategorie</label>
-                <select id="licTab">${tabOptions}</select>
-            </div>
-        `;
-
-        // 2. Alle anderen dynamischen Spalten zeichnen
         columns.forEach(col => {
             let extraAttributes = '';
             if (col.key === 'firma') extraAttributes = 'list="customerList" required';
-            if (col.key === 'dauer') extraAttributes = 'placeholder="z.B. 1 Jahr oder 6 Monate"';
+            if (col.key === 'dauer') extraAttributes = 'placeholder="z.B. 1 Jahr"';
             if (col.key === 'bezeichnung') extraAttributes = 'required';
 
-            grid.innerHTML += `
+            let html = `
                 <div class="form-group">
                     <label>${col.label}</label>
                     <input type="${col.type}" id="${col.key}" ${extraAttributes}>
                 </div>
             `;
+            
+            // Ablaufdatum bekommt die 1-10 Jahre Schnellwahl-Buttons
+            if (col.key === 'ende') {
+                html = `
+                    <div class="form-group">
+                        <label>${col.label}</label>
+                        <input type="${col.type}" id="${col.key}">
+                        <div class="quick-years-container">
+                            ${[1,2,3,4,5,6,7,8,9,10].map(y => `<button type="button" class="btn-year" onclick="setEndYears(${y})">+${y}J</button>`).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+            grid.innerHTML += html;
         });
-
-        // Vorauswahl des Dropdowns anpassen, falls man in einem spezifischen Tab ist
-        const selectElement = document.getElementById('licTab');
-        if(selectElement && activeTab !== 'Alle') {
-            selectElement.value = activeTab;
-        }
 
         setTimeout(() => {
             const startE = document.getElementById('start');
@@ -312,6 +290,25 @@
             if (startE) startE.addEventListener('change', autoCalcEndDate);
             if (dauerE) dauerE.addEventListener('input', autoCalcEndDate);
         }, 100);
+    }
+
+    // Funktion für die 1-10 Jahre Buttons
+    function setEndYears(years) {
+        const startInput = document.getElementById('start');
+        let baseDate = startInput && startInput.value ? new Date(startInput.value) : new Date();
+        if (isNaN(baseDate.getTime())) baseDate = new Date();
+        
+        baseDate.setFullYear(baseDate.getFullYear() + years);
+        
+        const endeInput = document.getElementById('ende');
+        if (endeInput) {
+            endeInput.value = baseDate.toISOString().split('T')[0];
+        }
+        
+        const dauerInput = document.getElementById('dauer');
+        if (dauerInput) {
+            dauerInput.value = `${years} ${years === 1 ? 'Jahr' : 'Jahre'}`;
+        }
     }
 
     function autoCalcEndDate() {
@@ -364,7 +361,7 @@
 
     function removeColumn(key) {
         if (protectedKeys.includes(key)) {
-            alert("System-Spalten können nicht gelöscht werden.");
+            alert("Diese System-Spalte kann nicht gelöscht werden, da sonst wichtige Logiken brechen.");
             return;
         }
         const colDef = columns.find(c => c.key === key);
@@ -397,7 +394,7 @@
         headerExpired.innerHTML = headerHtml.replace(/currentTable/g, 'expired');
     }
 
-    // ================= SORTIERUNG UND DATEN =================
+    // ================= SORTIERUNG UND SPEICHERUNG =================
 
     function handleSort(key, tableType) {
         if (sortConfig[tableType].key === key) {
@@ -430,10 +427,8 @@
         });
     }
 
-    // Speichern / Hinzufügen
     document.getElementById('licenseForm').addEventListener('submit', function(e) {
         e.preventDefault();
-        const selectedTab = document.getElementById('licTab').value;
         
         if (editModeId) {
             const index = licenses.findIndex(l => l.id === editModeId);
@@ -442,12 +437,11 @@
                     const el = document.getElementById(col.key);
                     if(el) licenses[index][col.key] = el.value;
                 });
-                licenses[index].tab = selectedTab; // Aktualisiere den Reiter
                 licenses[index].customColor = 'auto'; 
             }
             cancelEdit();
         } else {
-            const newEntry = { id: Date.now(), customColor: 'auto', tab: selectedTab };
+            const newEntry = { id: Date.now(), customColor: 'auto' };
             columns.forEach(col => {
                 const el = document.getElementById(col.key);
                 if(el) newEntry[col.key] = el.value;
@@ -458,9 +452,6 @@
         saveAndRender();
         this.reset();
         updateCustomerDatalist();
-        // Bleibe im aktuell gewählten Tab, um Verwirrung zu vermeiden
-        const selectElement = document.getElementById('licTab');
-        if(selectElement && activeTab !== 'Alle') selectElement.value = activeTab;
     });
 
     function editEntry(id) {
@@ -469,15 +460,10 @@
         
         editModeId = id;
         
-        // Werte laden
         columns.forEach(col => {
             const el = document.getElementById(col.key);
             if(el) el.value = lic[col.key] || '';
         });
-        
-        // Reiter im Formular laden
-        const selectElement = document.getElementById('licTab');
-        if(selectElement) selectElement.value = lic.tab || 'Allgemein';
 
         const btn = document.getElementById('submitBtn');
         btn.innerText = "Änderungen speichern (Erneuern)";
@@ -494,9 +480,6 @@
         btn.innerText = "Eintrag speichern";
         btn.style.backgroundColor = "#27ae60";
         document.getElementById('cancelEditBtn').style.display = "none";
-        
-        const selectElement = document.getElementById('licTab');
-        if(selectElement && activeTab !== 'Alle') selectElement.value = activeTab;
     }
 
     function updateCell(id, key, element) {
@@ -517,14 +500,14 @@
     }
 
     function deleteEntry(id) {
-        if(confirm("Eintrag löschen?")) {
+        if(confirm("Eintrag unwiderruflich löschen?")) {
             licenses = licenses.filter(lic => lic.id !== id);
             saveAndRender();
         }
     }
 
     function saveAndRender() {
-        localStorage.setItem('licenses_v4', JSON.stringify(licenses));
+        localStorage.setItem('licenses_v5', JSON.stringify(licenses));
         renderAll();
     }
 
@@ -552,7 +535,6 @@
         activeBody.innerHTML = '';
         expiredBody.innerHTML = '';
 
-        // Titel updaten, um anzuzeigen, in welchem Reiter man arbeitet
         document.getElementById('activeTitle').innerText = `Aktive Lizenzen (${activeTab})`;
 
         const todayStr = new Date().toISOString().split('T')[0];
@@ -560,15 +542,18 @@
         let expiredList = [];
 
         licenses.forEach(lic => {
-            // 1. Filter nach Suchbegriff
+            // 1. Suche nach Kunde
             if (searchTerm && !String(lic.firma || '').toLowerCase().includes(searchTerm)) return;
 
-            // 2. FILTER NACH AKTIVEM REITER (WICHTIG!)
-            // Wenn eine ältere Lizenz kein 'tab' Feld hat, fällt sie automatisch unter "Allgemein"
-            let licTab = lic.tab || 'Allgemein';
-            if (activeTab !== 'Alle' && licTab !== activeTab) return;
+            // 2. DYNAMISCHE FILTERUNG NACH PRODUKTEBEZEICHNUNG
+            if (activeTab !== 'Allgemein') {
+                let prodBez = String(lic.bezeichnung || '').toLowerCase();
+                if (!prodBez.includes(activeTab.toLowerCase())) {
+                    return; // Überspringe, wenn Suchwort des Reiters nicht im Text vorkommt
+                }
+            }
 
-            // 3. Trennung aktiv/abgelaufen
+            // 3. Aufteilung Aktiv / Archiv
             if (lic.ende && lic.ende < todayStr) {
                 expiredList.push(lic);
             } else {
@@ -581,7 +566,7 @@
 
         function buildTableRows(list, container, isExpiredTable) {
             if(list.length === 0) {
-                container.innerHTML = `<tr><td colspan="${columns.length + 2}" style="text-align:center; color:#999; padding:20px;">Keine Einträge in diesem Reiter vorhanden</td></tr>`;
+                container.innerHTML = `<tr><td colspan="${columns.length + 2}" style="text-align:center; color:#999; padding:20px;">Keine Einträge für den Filter "${activeTab}" vorhanden</td></tr>`;
                 return;
             }
 
@@ -620,7 +605,6 @@
         buildTableRows(expiredList, expiredBody, true);
     }
 
-    // Start
     init();
 </script>
 </body>
