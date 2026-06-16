@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Erweiterte Lizenz-Verwaltung</title>
+    <title>Lizenz- & Vertragsverwaltung</title>
     <style>
         body { font-family: 'Segoe UI', Arial, sans-serif; background-color: #f8f9fa; color: #333; margin: 0; padding: 20px; }
         .container { max-width: 100%; margin: 0 auto; }
@@ -15,29 +15,35 @@
         .search-container input { padding: 10px 10px 10px 35px; border-radius: 5px; border: 1px solid #ccc; width: 300px; font-size: 14px; }
         .search-container::before { content: '🔍'; position: absolute; left: 10px; top: 8px; font-size: 16px; }
 
-        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 25px; }
+        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 25px; position: relative; }
         
-        /* Formular-Grid für alle 15 Felder */
+        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .add-col-btn { background-color: #f1c40f; color: #333; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 13px; }
+        .add-col-btn:hover { background-color: #f39c12; }
+
+        /* Dynamisches Formular-Grid */
         .form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin-bottom: 15px; }
         .form-group { display: flex; flex-direction: column; }
         .form-group label { font-size: 12px; font-weight: bold; margin-bottom: 4px; color: #555; }
         .form-group input { padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; }
         
-        .submit-btn { background-color: #27ae60; color: white; border: none; padding: 12px 25px; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 14px; transition: background 0.2s; width: 100%; max-width: 200px; }
-        .submit-btn:hover { background-color: #219653; }
+        #submitBtn { background-color: #27ae60; color: white; border: none; padding: 12px 25px; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 14px; transition: background 0.2s; width: 100%; max-width: 300px; }
+        #submitBtn:hover { opacity: 0.9; }
 
         /* Tabellen-Styling */
         .table-responsive { overflow-x: auto; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 20px; border: 1px solid #e0e0e0; }
         table { width: 100%; border-collapse: collapse; text-align: left; font-size: 13px; min-width: 1600px; }
-        th { background-color: #34495e; color: white; padding: 12px 8px; cursor: pointer; user-select: none; position: relative; white-space: nowrap; }
-        th:hover { background-color: #2c3e50; }
-        th::after { content: ' ↕'; font-size: 10px; opacity: 0.5; }
-        td { padding: 10px 8px; border-bottom: 1px solid #e0e0e0; word-break: break-word; }
+        th { background-color: #34495e; color: white; padding: 12px 8px; user-select: none; white-space: nowrap; }
+        .th-content { display: flex; justify-content: space-between; align-items: center; }
+        .th-text { cursor: pointer; flex-grow: 1; }
+        .th-text:hover { color: #f1c40f; }
+        .remove-col { cursor: pointer; font-size: 11px; color: #ff7675; margin-left: 10px; padding: 2px; }
+        .remove-col:hover { color: #d63031; font-weight: bold; }
         
-        /* Inline-Editing optischer Hinweis */
+        td { padding: 10px 8px; border-bottom: 1px solid #e0e0e0; word-break: break-word; }
         td[contenteditable="true"]:focus { background-color: #fff !important; outline: 2px solid #3498db; border-radius: 2px; color: #000; }
 
-        /* Farblogik Hintergrundfarben */
+        /* Farblogik */
         .row-green { background-color: #d4edda !important; color: #155724; }
         .row-yellow { background-color: #fff3cd !important; color: #856404; }
         .row-orange { background-color: #ffe0b2 !important; color: #e65100; }
@@ -46,11 +52,16 @@
         .row-none { background-color: #ffffff !important; color: #333333; }
 
         .color-select { padding: 4px; border-radius: 4px; border: 1px solid #ccc; font-size: 11px; background: white; }
-        .action-btn { background-color: #e74c3c; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px; }
-        .action-btn:hover { background-color: #c0392b; }
+        .action-cell { display: flex; gap: 5px; }
+        .btn-edit { background-color: #3498db; color: white; border: none; padding: 5px 8px; border-radius: 4px; cursor: pointer; font-size: 11px; }
+        .btn-edit:hover { background-color: #2980b9; }
+        .btn-delete { background-color: #e74c3c; color: white; border: none; padding: 5px 8px; border-radius: 4px; cursor: pointer; font-size: 11px; }
+        .btn-delete:hover { background-color: #c0392b; }
     </style>
 </head>
 <body>
+
+<datalist id="customerList"></datalist>
 
 <div class="container">
     <div class="header">
@@ -61,26 +72,15 @@
     </div>
 
     <div class="card">
-        <h3>➕ Neue Lizenz / Eintrag hinzufügen</h3>
+        <div class="card-header">
+            <h3>➕ Eintrag hinzufügen / bearbeiten</h3>
+            <button class="add-col-btn" onclick="promptAddColumn()">⚙️ Neue Spalte hinzufügen</button>
+        </div>
         <form id="licenseForm">
-            <div class="form-grid">
-                <div class="form-group"><label>Firma (Kunde)</label><input type="text" id="firma" required></div>
-                <div class="form-group"><label>Auftrags-Nr.</label><input type="number" id="auftrag"></div>
-                <div class="form-group"><label>Anzahl</label><input type="number" id="anzahl" value="1"></div>
-                <div class="form-group"><label>Artikelnummer</label><input type="text" id="artikel"></div>
-                <div class="form-group"><label>Produktebezeichnung</label><input type="text" id="bezeichnung" required></div>
-                <div class="form-group"><label>Produkt Herst.Nr.</label><input type="text" id="herstNr"></div>
-                <div class="form-group"><label>Serie-Nr.</label><input type="text" id="serie"></div>
-                <div class="form-group"><label>Bezeichnung2</label><input type="text" id="bez2"></div>
-                <div class="form-group"><label>Lieferant</label><input type="text" id="lieferant"></div>
-                <div class="form-group"><label>Dauer</label><input type="text" id="dauer" placeholder="z.B. 1 Jahr"></div>
-                <div class="form-group"><label>Start-Datum</label><input type="date" id="start"></div>
-                <div class="form-group"><label>Ablauf-Datum</label><input type="date" id="ende"></div>
-                <div class="form-group"><label>aus Liste</label><input type="text" id="ausListe"></div>
-                <div class="form-group"><label>Sachb.</label><input type="text" id="sachb"></div>
-                <div class="form-group"><label>Status</label><input type="text" id="status"></div>
-            </div>
-            <button type="submit" class="submit-btn">Eintrag speichern</button>
+            <div class="form-grid" id="dynamicFormGrid"></div>
+            
+            <button type="submit" id="submitBtn">Eintrag speichern</button>
+            <button type="button" id="cancelEditBtn" style="display:none; padding: 12px 25px; margin-left: 10px; cursor: pointer;" onclick="cancelEdit()">Abbrechen</button>
         </form>
     </div>
 
@@ -88,8 +88,7 @@
     <div class="table-responsive">
         <table>
             <thead>
-                <tr id="headersActive">
-                    </tr>
+                <tr id="headersActive"></tr>
             </thead>
             <tbody id="activeTableBody"></tbody>
         </table>
@@ -99,8 +98,7 @@
     <div class="table-responsive">
         <table>
             <thead>
-                <tr id="headersExpired">
-                    </tr>
+                <tr id="headersExpired"></tr>
             </thead>
             <tbody id="expiredTableBody"></tbody>
         </table>
@@ -108,8 +106,9 @@
 </div>
 
 <script>
-    // Definition aller Spalten laut Excel-Bild
-    const columns = [
+    // 1. Spalten-Definition (Laden aus Speicher oder Standard setzen)
+    // Bezeichnung2 wurde entfernt.
+    const defaultColumns = [
         { key: 'firma', label: 'Firma (Kunde)', type: 'text' },
         { key: 'auftrag', label: 'Auftrags-Nr.', type: 'number' },
         { key: 'anzahl', label: 'Anzahl', type: 'number' },
@@ -117,7 +116,6 @@
         { key: 'bezeichnung', label: 'Produktebezeichnung', type: 'text' },
         { key: 'herstNr', label: 'Produkt Herst.Nr.', type: 'text' },
         { key: 'serie', label: 'Serie-Nr.', type: 'text' },
-        { key: 'bez2', label: 'Bezeichnung2', type: 'text' },
         { key: 'lieferant', label: 'Lieferant', type: 'text' },
         { key: 'dauer', label: 'Dauer', type: 'text' },
         { key: 'start', label: 'Start-Datum', type: 'date' },
@@ -127,28 +125,150 @@
         { key: 'status', label: 'Status', type: 'text' }
     ];
 
-    // Daten-Array & Sortierungs-Zustand laden
-    let licenses = JSON.parse(localStorage.getItem('licenses_v2')) || [];
-    
+    let columns = JSON.parse(localStorage.getItem('dyn_columns')) || defaultColumns;
+    let licenses = JSON.parse(localStorage.getItem('licenses_v3')) || JSON.parse(localStorage.getItem('licenses_v2')) || [];
+    let editModeId = null;
+
     let sortConfig = {
-        active: { key: 'ende', direction: 'asc' },      // Standardmäßig bald auslaufende zuerst
-        expired: { key: 'firma', direction: 'asc' }    // Standardmäßig alphabetisch nach Kunde
+        active: { key: 'ende', direction: 'asc' },
+        expired: { key: 'firma', direction: 'asc' }
     };
 
-    // Tabellenköpfe generieren
-    function createHeaders() {
-        const headerActiveRow = document.getElementById('headersActive');
-        const headerExpiredRow = document.getElementById('headersExpired');
-        
-        let headerHtml = columns.map(col => `<th onclick="handleSort('${col.key}', 'currentTable')">${col.label}</th>`).join('');
-        // Zusatzspalten für manuelle Farbe und Aktionen
-        headerHtml += '<th>Manuelle Farbe</th><th>Aktion</th>';
-        
-        headerActiveRow.innerHTML = headerHtml.replace(/currentTable/g, 'active');
-        headerExpiredRow.innerHTML = headerHtml.replace(/currentTable/g, 'expired');
+    const protectedKeys = ['firma', 'start', 'ende', 'dauer']; // Diese dürfen nicht gelöscht werden
+
+    // 2. Initialisierung
+    function init() {
+        renderDynamicForm();
+        updateCustomerDatalist();
+        createHeaders();
+        renderAll();
     }
 
-    // Sortierung verarbeiten
+    // 3. Formular dynamisch aufbauen
+    function renderDynamicForm() {
+        const grid = document.getElementById('dynamicFormGrid');
+        grid.innerHTML = '';
+
+        columns.forEach(col => {
+            let extraAttributes = '';
+            if (col.key === 'firma') extraAttributes = 'list="customerList" required';
+            if (col.key === 'dauer') extraAttributes = 'placeholder="z.B. 1 Jahr oder 6 Monate"';
+            if (col.key === 'bezeichnung') extraAttributes = 'required';
+
+            grid.innerHTML += `
+                <div class="form-group">
+                    <label>${col.label}</label>
+                    <input type="${col.type}" id="${col.key}" ${extraAttributes}>
+                </div>
+            `;
+        });
+
+        // Event-Listener für Auto-Datum neu setzen
+        setTimeout(() => {
+            const startE = document.getElementById('start');
+            const dauerE = document.getElementById('dauer');
+            if (startE) startE.addEventListener('change', autoCalcEndDate);
+            if (dauerE) dauerE.addEventListener('input', autoCalcEndDate);
+        }, 100);
+    }
+
+    // 4. Auto-Berechnung Enddatum
+    function autoCalcEndDate() {
+        const startInput = document.getElementById('start');
+        const dauerInput = document.getElementById('dauer');
+        const endeInput = document.getElementById('ende');
+        
+        if (!startInput || !dauerInput || !endeInput) return;
+        if (!startInput.value || !dauerInput.value) return;
+
+        let date = new Date(startInput.value);
+        if (isNaN(date.getTime())) return; // Ungültiges Datum
+
+        // Sucht nach Zahl und Einheit (z.B. "1 Jahr", "3 Monate")
+        const match = dauerInput.value.match(/(\d+)\s*(jahr|j|monat|m|tag|t)/i);
+        if (match) {
+            let num = parseInt(match[1]);
+            let unit = match[2].toLowerCase();
+
+            if (unit.startsWith('j')) {
+                date.setFullYear(date.getFullYear() + num);
+            } else if (unit.startsWith('m')) {
+                date.setMonth(date.getMonth() + num);
+            } else if (unit.startsWith('t')) {
+                date.setDate(date.getDate() + num);
+            }
+            endeInput.value = date.toISOString().split('T')[0];
+        }
+    }
+
+    // 5. Kunden Auto-Vervollständigung
+    function updateCustomerDatalist() {
+        const dl = document.getElementById('customerList');
+        dl.innerHTML = '';
+        // Holt alle einzigartigen Firmennamen aus dem Speicher
+        const uniqueFirms = [...new Set(licenses.map(l => l.firma).filter(Boolean))];
+        uniqueFirms.forEach(f => {
+            dl.innerHTML += `<option value="${f}">`;
+        });
+    }
+
+    // 6. Spaltenverwaltung
+    function promptAddColumn() {
+        const name = prompt("Wie soll die neue Spalte heißen?");
+        if (!name) return;
+        const isDate = confirm("Soll das Feld ein Kalender-Datum sein? (Klicke OK für Datum, Abbrechen für normalen Text)");
+        const type = isDate ? "date" : "text";
+        const key = 'col_' + Date.now(); // Eindeutige ID für die Spalte
+        
+        columns.push({ key, label: name, type });
+        saveColumns();
+        init();
+    }
+
+    function removeColumn(key) {
+        if (protectedKeys.includes(key)) {
+            alert("System-Spalten (Firma, Start-Datum, Ablauf-Datum, Dauer) können nicht gelöscht werden, da sonst die Automatik bricht.");
+            return;
+        }
+        
+        const colDef = columns.find(c => c.key === key);
+        if (!colDef) return;
+
+        if (confirm(`Willst du die Spalte "${colDef.label}" wirklich im gesamten Dokument löschen? Alle Daten in dieser Spalte gehen dauerhaft verloren!`)) {
+            columns = columns.filter(c => c.key !== key);
+            // Lösche die Daten auch aus den existierenden Einträgen
+            licenses.forEach(lic => delete lic[key]);
+            
+            saveColumns();
+            saveAndRender();
+            init(); // Baut alles neu auf
+        }
+    }
+
+    function saveColumns() {
+        localStorage.setItem('dyn_columns', JSON.stringify(columns));
+    }
+
+    // 7. Tabellenköpfe bauen
+    function createHeaders() {
+        const headerActive = document.getElementById('headersActive');
+        const headerExpired = document.getElementById('headersExpired');
+        
+        let headerHtml = columns.map(col => `
+            <th>
+                <div class="th-content">
+                    <span class="th-text" onclick="handleSort('${col.key}', 'currentTable')" title="Nach ${col.label} sortieren">${col.label} ↕</span>
+                    <span class="remove-col" onclick="removeColumn('${col.key}')" title="Spalte löschen">✖</span>
+                </div>
+            </th>`).join('');
+            
+        headerHtml += '<th>Farbe (Manuell)</th><th>Aktionen</th>';
+        
+        headerActive.innerHTML = headerHtml.replace(/currentTable/g, 'active');
+        headerExpired.innerHTML = headerHtml.replace(/currentTable/g, 'expired');
+    }
+
+    // 8. Sortieren
     function handleSort(key, tableType) {
         if (sortConfig[tableType].key === key) {
             sortConfig[tableType].direction = sortConfig[tableType].direction === 'asc' ? 'desc' : 'asc';
@@ -159,7 +279,6 @@
         renderAll();
     }
 
-    // Universelle Sortierfunktion
     function sortData(data, config) {
         const key = config.key;
         const dir = config.direction === 'asc' ? 1 : -1;
@@ -172,7 +291,7 @@
             if (colDef && colDef.type === 'number') {
                 return (Number(valA) - Number(valB)) * dir;
             } else if (colDef && colDef.type === 'date') {
-                if (!valA) return 1 * dir; // Leere Daten nach hinten schieben
+                if (!valA) return 1 * dir; 
                 if (!valB) return -1 * dir;
                 return (new Date(valA) - new Date(valB)) * dir;
             } else {
@@ -181,31 +300,76 @@
         });
     }
 
-    // Formular-Absendung verarbeiten
+    // 9. Speichern / Bearbeiten Logic
     document.getElementById('licenseForm').addEventListener('submit', function(e) {
         e.preventDefault();
-        const newEntry = { id: Date.now(), customColor: 'auto' };
-        columns.forEach(col => {
-            newEntry[col.key] = document.getElementById(col.key).value;
-        });
-        licenses.push(newEntry);
+        
+        if (editModeId) {
+            // Existierenden Eintrag aktualisieren
+            const index = licenses.findIndex(l => l.id === editModeId);
+            if(index !== -1) {
+                columns.forEach(col => {
+                    const el = document.getElementById(col.key);
+                    if(el) licenses[index][col.key] = el.value;
+                });
+                licenses[index].customColor = 'auto'; // Setzt Farbe auf Automatik zurück bei Erneuerung
+            }
+            cancelEdit(); // Beendet Edit-Modus
+        } else {
+            // Neuen Eintrag anlegen
+            const newEntry = { id: Date.now(), customColor: 'auto' };
+            columns.forEach(col => {
+                const el = document.getElementById(col.key);
+                if(el) newEntry[col.key] = el.value;
+            });
+            licenses.push(newEntry);
+        }
+        
         saveAndRender();
         this.reset();
+        updateCustomerDatalist();
     });
 
-    // Inline-Änderungen in Zellen speichern
+    function editEntry(id) {
+        const lic = licenses.find(l => l.id === id);
+        if(!lic) return;
+        
+        editModeId = id;
+        
+        // Werte ins Formular laden
+        columns.forEach(col => {
+            const el = document.getElementById(col.key);
+            if(el) el.value = lic[col.key] || '';
+        });
+
+        // UI anpassen
+        const btn = document.getElementById('submitBtn');
+        btn.innerText = "Änderungen speichern (Erneuern)";
+        btn.style.backgroundColor = "#e67e22";
+        document.getElementById('cancelEditBtn').style.display = "inline-block";
+        
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function cancelEdit() {
+        editModeId = null;
+        document.getElementById('licenseForm').reset();
+        const btn = document.getElementById('submitBtn');
+        btn.innerText = "Eintrag speichern";
+        btn.style.backgroundColor = "#27ae60";
+        document.getElementById('cancelEditBtn').style.display = "none";
+    }
+
+    // 10. Inline-Editing für die Tabelle
     function updateCell(id, key, element) {
         const value = element.innerText.trim();
         const index = licenses.findIndex(lic => lic.id === id);
         if (index !== -1) {
             licenses[index][key] = value;
-            localStorage.setItem('licenses_v2', JSON.stringify(licenses));
-            // Falls das Ablaufdatum geändert wurde, könnte sich die Tabellenzuordnung ändern.
-            if (key === 'ende') { renderAll(); }
+            saveAndRender();
         }
     }
 
-    // Manuelle Farbe ändern
     function changeCustomColor(id, selectElement) {
         const index = licenses.findIndex(lic => lic.id === id);
         if (index !== -1) {
@@ -214,43 +378,35 @@
         }
     }
 
-    // Eintrag löschen
     function deleteEntry(id) {
-        if(confirm("Eintrag wirklich löschen?")) {
+        if(confirm("Diesen Eintrag wirklich unwiderruflich löschen?")) {
             licenses = licenses.filter(lic => lic.id !== id);
             saveAndRender();
         }
     }
 
     function saveAndRender() {
-        localStorage.setItem('licenses_v2', JSON.stringify(licenses));
+        localStorage.setItem('licenses_v3', JSON.stringify(licenses));
         renderAll();
     }
 
-    // Farbberechnung für eine Zeile
+    // 11. Tabellen zeichnen
     function getRowClass(lic, isExpired) {
-        // Falls eine manuelle Farbe gewählt wurde, ignoriere die automatische Datumslogik komplett
         if (lic.customColor && lic.customColor !== 'auto') {
             return `row-${lic.customColor}`;
         }
-        
-        // Wenn strukturell abgelaufen, standardmäßig grau
         if (isExpired) return 'row-gray';
-        
         if (!lic.ende) return 'row-none';
 
         const endDateObj = new Date(lic.ende);
-        const today = new Date();
-        const diffTime = endDateObj - today;
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        const diffDays = Math.ceil((endDateObj - new Date()) / (1000 * 60 * 60 * 24));
 
-        if (diffDays <= 30) return 'row-red';        // 1 Monat oder weniger
-        if (diffDays <= 60) return 'row-orange';     // 2 Monate oder weniger
-        if (diffDays <= 90) return 'row-yellow';     // 3 Monate oder weniger
-        return 'row-green';                         // Mehr als 3 Monate
+        if (diffDays <= 30) return 'row-red';
+        if (diffDays <= 60) return 'row-orange';
+        if (diffDays <= 90) return 'row-yellow';
+        return 'row-green';
     }
 
-    // Render-Logik für beide Tabellen
     function renderAll() {
         const searchTerm = document.getElementById('searchInput').value.toLowerCase();
         const activeBody = document.getElementById('activeTableBody');
@@ -260,16 +416,11 @@
         expiredBody.innerHTML = '';
 
         const todayStr = new Date().toISOString().split('T')[0];
-
-        // 1. Aufteilen in Aktiv und Abgelaufen anhand des Ablauf-Datums
         let activeList = [];
         let expiredList = [];
 
         licenses.forEach(lic => {
-            // Nur filtern wenn Suchbegriff eingegeben wurde (Filtert nach Firmenname)
-            if (searchTerm && !String(lic.firma).toLowerCase().includes(searchTerm)) {
-                return;
-            }
+            if (searchTerm && !String(lic.firma || '').toLowerCase().includes(searchTerm)) return;
 
             if (lic.ende && lic.ende < todayStr) {
                 expiredList.push(lic);
@@ -278,11 +429,9 @@
             }
         });
 
-        // 2. Sortierung anwenden
         activeList = sortData(activeList, sortConfig.active);
         expiredList = sortData(expiredList, sortConfig.expired);
 
-        // 3. Tabellenzeilen bauen
         function buildTableRows(list, container, isExpiredTable) {
             if(list.length === 0) {
                 container.innerHTML = `<tr><td colspan="${columns.length + 2}" style="text-align:center; color:#999; padding:20px;">Keine Einträge vorhanden</td></tr>`;
@@ -293,39 +442,30 @@
                 const tr = document.createElement('tr');
                 tr.className = getRowClass(lic, isExpiredTable);
 
-                // Felder generieren
+                // Felder sicher als DOM-String aufbauen (Behebt den Bug mit der leeren Zeile!)
                 let cellsHtml = columns.map(col => {
-                    return `<td contenteditable="true" onblur="updateCell(${lic.id}, '${col.key}', this)" onkeydown="if(event.keyCode==13){event.preventDefault(); this.blur();}">\${lic[col.key] || ''}</td>`;
+                    let val = lic[col.key] || '';
+                    return `<td contenteditable="true" onblur="updateCell(${lic.id}, '${col.key}', this)" onkeydown="if(event.keyCode==13){event.preventDefault(); this.blur();}">${val}</td>`;
                 }).join('');
 
-                // Dropdown für manuelle Farbwahl
-                const optAuto = lic.customColor === 'auto' ? 'selected' : '';
-                const optGreen = lic.customColor === 'green' ? 'selected' : '';
-                const optYellow = lic.customColor === 'yellow' ? 'selected' : '';
-                const optOrange = lic.customColor === 'orange' ? 'selected' : '';
-                const optRed = lic.customColor === 'red' ? 'selected' : '';
-                const optGray = lic.customColor === 'gray' ? 'selected' : '';
-                const optNone = lic.customColor === 'none' ? 'selected' : '';
+                const colors = ['auto', 'green', 'yellow', 'orange', 'red', 'gray', 'none'];
+                let optionsHtml = colors.map(c => 
+                    `<option value="${c}" ${lic.customColor === c ? 'selected' : ''}>${c.charAt(0).toUpperCase() + c.slice(1)}</option>`
+                ).join('');
 
                 cellsHtml += `
                     <td>
                         <select class="color-select" onchange="changeCustomColor(${lic.id}, this)">
-                            <option value="auto" ${optAuto}>Automatisch</option>
-                            <option value="green" ${optGreen}>Grün</option>
-                            <option value="yellow" ${optYellow}>Gelb</option>
-                            <option value="orange" ${optOrange}>Orange</option>
-                            <option value="red" ${optRed}>Rot</option>
-                            <option value="gray" ${optGray}>Grau</option>
-                            <option value="none" ${optNone}>Keine Farbe</option>
+                            ${optionsHtml}
                         </select>
                     </td>
-                    <td>
-                        <button class="action-btn" onclick="deleteEntry(${lic.id})">Löschen</button>
+                    <td class="action-cell">
+                        <button class="btn-edit" onclick="editEntry(${lic.id})" title="Daten oben in Maske laden">Erneuern / Bearbeiten</button>
+                        <button class="btn-delete" onclick="deleteEntry(${lic.id})">Löschen</button>
                     </td>
                 `;
 
-                // Fix für Vorlagen-Injektion in Vanilla JS
-                tr.innerHTML = cellsHtml.replace(/\${lic\[(.*?)] \|\| ''}/g, (match, key) => lic[key] || '');
+                tr.innerHTML = cellsHtml;
                 container.appendChild(tr);
             });
         }
@@ -334,10 +474,9 @@
         buildTableRows(expiredList, expiredBody, true);
     }
 
-    // Initialisierung beim Laden der Seite
-    createHeaders();
-    renderAll();
-</script>
+    // Start
+    init();
 
+</script>
 </body>
 </html>
