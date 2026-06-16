@@ -3,134 +3,341 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lizenz-Verwaltung</title>
+    <title>Erweiterte Lizenz-Verwaltung</title>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; color: #333; max-width: 800px; margin: 0 auto; padding: 20px; }
-        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; background-color: #f8f9fa; color: #333; margin: 0; padding: 20px; }
+        .container { max-width: 100%; margin: 0 auto; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; background: #fff; padding: 15px 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        h1, h2 { color: #2c3e50; margin: 0; }
+        h2 { margin-top: 30px; margin-bottom: 15px; padding-bottom: 5px; border-bottom: 2px solid #bdc3c7; }
+        
         .search-container { position: relative; }
-        .search-container input { padding: 10px 10px 10px 35px; border-radius: 5px; border: 1px solid #ccc; width: 250px; }
-        .search-container::before { content: '🔍'; position: absolute; left: 10px; top: 10px; }
-        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 20px; }
-        .form-group { display: flex; gap: 10px; margin-bottom: 15px; }
-        input { padding: 10px; border: 1px solid #ccc; border-radius: 5px; flex: 1; }
-        button { background-color: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; }
-        button:hover { background-color: #0056b3; }
-        .license-item { display: flex; justify-content: space-between; align-items: center; padding: 15px; border-bottom: 1px solid #eee; }
-        .license-item:last-child { border-bottom: none; }
-        .license-info h3 { margin: 0 0 5px 0; }
-        .license-dates { font-size: 0.9em; color: #666; }
-        .warning { color: #dc3545; font-weight: bold; }
-        .delete-btn { background-color: #dc3545; padding: 5px 10px; }
-        .delete-btn:hover { background-color: #c82333; }
+        .search-container input { padding: 10px 10px 10px 35px; border-radius: 5px; border: 1px solid #ccc; width: 300px; font-size: 14px; }
+        .search-container::before { content: '🔍'; position: absolute; left: 10px; top: 8px; font-size: 16px; }
+
+        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 25px; }
+        
+        /* Formular-Grid für alle 15 Felder */
+        .form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin-bottom: 15px; }
+        .form-group { display: flex; flex-direction: column; }
+        .form-group label { font-size: 12px; font-weight: bold; margin-bottom: 4px; color: #555; }
+        .form-group input { padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; }
+        
+        .submit-btn { background-color: #27ae60; color: white; border: none; padding: 12px 25px; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 14px; transition: background 0.2s; width: 100%; max-width: 200px; }
+        .submit-btn:hover { background-color: #219653; }
+
+        /* Tabellen-Styling */
+        .table-responsive { overflow-x: auto; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 20px; border: 1px solid #e0e0e0; }
+        table { width: 100%; border-collapse: collapse; text-align: left; font-size: 13px; min-width: 1600px; }
+        th { background-color: #34495e; color: white; padding: 12px 8px; cursor: pointer; user-select: none; position: relative; white-space: nowrap; }
+        th:hover { background-color: #2c3e50; }
+        th::after { content: ' ↕'; font-size: 10px; opacity: 0.5; }
+        td { padding: 10px 8px; border-bottom: 1px solid #e0e0e0; word-break: break-word; }
+        
+        /* Inline-Editing optischer Hinweis */
+        td[contenteditable="true"]:focus { background-color: #fff !important; outline: 2px solid #3498db; border-radius: 2px; color: #000; }
+
+        /* Farblogik Hintergrundfarben */
+        .row-green { background-color: #d4edda !important; color: #155724; }
+        .row-yellow { background-color: #fff3cd !important; color: #856404; }
+        .row-orange { background-color: #ffe0b2 !important; color: #e65100; }
+        .row-red { background-color: #f8d7da !important; color: #721c24; }
+        .row-gray { background-color: #e2e3e5 !important; color: #383d41; }
+        .row-none { background-color: #ffffff !important; color: #333333; }
+
+        .color-select { padding: 4px; border-radius: 4px; border: 1px solid #ccc; font-size: 11px; background: white; }
+        .action-btn { background-color: #e74c3c; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px; }
+        .action-btn:hover { background-color: #c0392b; }
     </style>
 </head>
 <body>
 
+<div class="container">
     <div class="header">
-        <h1>Lizenz-Dashboard</h1>
+        <h1>Lizenz- & Vertragsverwaltung</h1>
         <div class="search-container">
-            <input type="text" id="searchInput" placeholder="Lizenznamen suchen..." onkeyup="renderLicenses()">
+            <input type="text" id="searchInput" placeholder="Nach Firma (Kunde) suchen..." onkeyup="renderAll()">
         </div>
     </div>
 
     <div class="card">
-        <h3>Neue Lizenz eintragen</h3>
+        <h3>➕ Neue Lizenz / Eintrag hinzufügen</h3>
         <form id="licenseForm">
-            <div class="form-group">
-                <input type="text" id="licName" placeholder="Name der Lizenz (z.B. Office 365)" required>
+            <div class="form-grid">
+                <div class="form-group"><label>Firma (Kunde)</label><input type="text" id="firma" required></div>
+                <div class="form-group"><label>Auftrags-Nr.</label><input type="number" id="auftrag"></div>
+                <div class="form-group"><label>Anzahl</label><input type="number" id="anzahl" value="1"></div>
+                <div class="form-group"><label>Artikelnummer</label><input type="text" id="artikel"></div>
+                <div class="form-group"><label>Produktebezeichnung</label><input type="text" id="bezeichnung" required></div>
+                <div class="form-group"><label>Produkt Herst.Nr.</label><input type="text" id="herstNr"></div>
+                <div class="form-group"><label>Serie-Nr.</label><input type="text" id="serie"></div>
+                <div class="form-group"><label>Bezeichnung2</label><input type="text" id="bez2"></div>
+                <div class="form-group"><label>Lieferant</label><input type="text" id="lieferant"></div>
+                <div class="form-group"><label>Dauer</label><input type="text" id="dauer" placeholder="z.B. 1 Jahr"></div>
+                <div class="form-group"><label>Start-Datum</label><input type="date" id="start"></div>
+                <div class="form-group"><label>Ablauf-Datum</label><input type="date" id="ende"></div>
+                <div class="form-group"><label>aus Liste</label><input type="text" id="ausListe"></div>
+                <div class="form-group"><label>Sachb.</label><input type="text" id="sachb"></div>
+                <div class="form-group"><label>Status</label><input type="text" id="status"></div>
             </div>
-            <div class="form-group">
-                <input type="date" id="startDate" title="Startdatum" required>
-                <input type="date" id="endDate" title="Enddatum" required>
-            </div>
-            <button type="submit">➕ Add License</button>
+            <button type="submit" class="submit-btn">Eintrag speichern</button>
         </form>
     </div>
 
-    <div class="card">
-        <h2>Aktive Lizenzen</h2>
-        <div id="licenseList">
-            </div>
+    <h2>Aktive Lizenzen</h2>
+    <div class="table-responsive">
+        <table>
+            <thead>
+                <tr id="headersActive">
+                    </tr>
+            </thead>
+            <tbody id="activeTableBody"></tbody>
+        </table>
     </div>
 
-    <script>
-        // Lade Lizenzen aus dem lokalen Speicher oder starte mit leerem Array
-        let licenses = JSON.parse(localStorage.getItem('licenses')) || [];
+    <h2>Abgelaufene Lizenzen (Archiv)</h2>
+    <div class="table-responsive">
+        <table>
+            <thead>
+                <tr id="headersExpired">
+                    </tr>
+            </thead>
+            <tbody id="expiredTableBody"></tbody>
+        </table>
+    </div>
+</div>
 
-        const form = document.getElementById('licenseForm');
-        const licenseList = document.getElementById('licenseList');
-        const searchInput = document.getElementById('searchInput');
+<script>
+    // Definition aller Spalten laut Excel-Bild
+    const columns = [
+        { key: 'firma', label: 'Firma (Kunde)', type: 'text' },
+        { key: 'auftrag', label: 'Auftrags-Nr.', type: 'number' },
+        { key: 'anzahl', label: 'Anzahl', type: 'number' },
+        { key: 'artikel', label: 'Artikelnummer', type: 'text' },
+        { key: 'bezeichnung', label: 'Produktebezeichnung', type: 'text' },
+        { key: 'herstNr', label: 'Produkt Herst.Nr.', type: 'text' },
+        { key: 'serie', label: 'Serie-Nr.', type: 'text' },
+        { key: 'bez2', label: 'Bezeichnung2', type: 'text' },
+        { key: 'lieferant', label: 'Lieferant', type: 'text' },
+        { key: 'dauer', label: 'Dauer', type: 'text' },
+        { key: 'start', label: 'Start-Datum', type: 'date' },
+        { key: 'ende', label: 'Ablauf-Datum', type: 'date' },
+        { key: 'ausListe', label: 'aus Liste', type: 'text' },
+        { key: 'sachb', label: 'Sachb.', type: 'text' },
+        { key: 'status', label: 'Status', type: 'text' }
+    ];
 
-        // Event Listener für das Hinzufügen
-        form.addEventListener('submit', function(e) {
-            e.preventDefault();
-            const newLicense = {
-                id: Date.now(),
-                name: document.getElementById('licName').value,
-                startDate: document.getElementById('startDate').value,
-                endDate: document.getElementById('endDate').value
-            };
-            licenses.push(newLicense);
-            saveAndRender();
-            form.reset();
+    // Daten-Array & Sortierungs-Zustand laden
+    let licenses = JSON.parse(localStorage.getItem('licenses_v2')) || [];
+    
+    let sortConfig = {
+        active: { key: 'ende', direction: 'asc' },      // Standardmäßig bald auslaufende zuerst
+        expired: { key: 'firma', direction: 'asc' }    // Standardmäßig alphabetisch nach Kunde
+    };
+
+    // Tabellenköpfe generieren
+    function createHeaders() {
+        const headerActiveRow = document.getElementById('headersActive');
+        const headerExpiredRow = document.getElementById('headersExpired');
+        
+        let headerHtml = columns.map(col => `<th onclick="handleSort('${col.key}', 'currentTable')">${col.label}</th>`).join('');
+        // Zusatzspalten für manuelle Farbe und Aktionen
+        headerHtml += '<th>Manuelle Farbe</th><th>Aktion</th>';
+        
+        headerActiveRow.innerHTML = headerHtml.replace(/currentTable/g, 'active');
+        headerExpiredRow.innerHTML = headerHtml.replace(/currentTable/g, 'expired');
+    }
+
+    // Sortierung verarbeiten
+    function handleSort(key, tableType) {
+        if (sortConfig[tableType].key === key) {
+            sortConfig[tableType].direction = sortConfig[tableType].direction === 'asc' ? 'desc' : 'asc';
+        } else {
+            sortConfig[tableType].key = key;
+            sortConfig[tableType].direction = 'asc';
+        }
+        renderAll();
+    }
+
+    // Universelle Sortierfunktion
+    function sortData(data, config) {
+        const key = config.key;
+        const dir = config.direction === 'asc' ? 1 : -1;
+        const colDef = columns.find(c => c.key === key);
+
+        return data.sort((a, b) => {
+            let valA = a[key] || '';
+            let valB = b[key] || '';
+
+            if (colDef && colDef.type === 'number') {
+                return (Number(valA) - Number(valB)) * dir;
+            } else if (colDef && colDef.type === 'date') {
+                if (!valA) return 1 * dir; // Leere Daten nach hinten schieben
+                if (!valB) return -1 * dir;
+                return (new Date(valA) - new Date(valB)) * dir;
+            } else {
+                return String(valA).localeCompare(String(valB), 'de', { numeric: true }) * dir;
+            }
         });
+    }
 
-        // Lizenz löschen
-        function deleteLicense(id) {
+    // Formular-Absendung verarbeiten
+    document.getElementById('licenseForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const newEntry = { id: Date.now(), customColor: 'auto' };
+        columns.forEach(col => {
+            newEntry[col.key] = document.getElementById(col.key).value;
+        });
+        licenses.push(newEntry);
+        saveAndRender();
+        this.reset();
+    });
+
+    // Inline-Änderungen in Zellen speichern
+    function updateCell(id, key, element) {
+        const value = element.innerText.trim();
+        const index = licenses.findIndex(lic => lic.id === id);
+        if (index !== -1) {
+            licenses[index][key] = value;
+            localStorage.setItem('licenses_v2', JSON.stringify(licenses));
+            // Falls das Ablaufdatum geändert wurde, könnte sich die Tabellenzuordnung ändern.
+            if (key === 'ende') { renderAll(); }
+        }
+    }
+
+    // Manuelle Farbe ändern
+    function changeCustomColor(id, selectElement) {
+        const index = licenses.findIndex(lic => lic.id === id);
+        if (index !== -1) {
+            licenses[index].customColor = selectElement.value;
+            saveAndRender();
+        }
+    }
+
+    // Eintrag löschen
+    function deleteEntry(id) {
+        if(confirm("Eintrag wirklich löschen?")) {
             licenses = licenses.filter(lic => lic.id !== id);
             saveAndRender();
         }
+    }
 
-        function saveAndRender() {
-            localStorage.setItem('licenses', JSON.stringify(licenses));
-            renderLicenses();
+    function saveAndRender() {
+        localStorage.setItem('licenses_v2', JSON.stringify(licenses));
+        renderAll();
+    }
+
+    // Farbberechnung für eine Zeile
+    function getRowClass(lic, isExpired) {
+        // Falls eine manuelle Farbe gewählt wurde, ignoriere die automatische Datumslogik komplett
+        if (lic.customColor && lic.customColor !== 'auto') {
+            return `row-${lic.customColor}`;
         }
+        
+        // Wenn strukturell abgelaufen, standardmäßig grau
+        if (isExpired) return 'row-gray';
+        
+        if (!lic.ende) return 'row-none';
 
-        function renderLicenses() {
-            const searchTerm = searchInput.value.toLowerCase();
-            licenseList.innerHTML = '';
+        const endDateObj = new Date(lic.ende);
+        const today = new Date();
+        const diffTime = endDateObj - today;
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-            // Filtern (Suchfunktion)
-            let filteredLicenses = licenses.filter(lic => 
-                lic.name.toLowerCase().includes(searchTerm)
-            );
+        if (diffDays <= 30) return 'row-red';        // 1 Monat oder weniger
+        if (diffDays <= 60) return 'row-orange';     // 2 Monate oder weniger
+        if (diffDays <= 90) return 'row-yellow';     // 3 Monate oder weniger
+        return 'row-green';                         // Mehr als 3 Monate
+    }
 
-            // Sortieren (Zuerst auslaufende oben)
-            filteredLicenses.sort((a, b) => new Date(a.endDate) - new Date(b.endDate));
+    // Render-Logik für beide Tabellen
+    function renderAll() {
+        const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+        const activeBody = document.getElementById('activeTableBody');
+        const expiredBody = document.getElementById('expiredTableBody');
+        
+        activeBody.innerHTML = '';
+        expiredBody.innerHTML = '';
 
-            filteredLicenses.forEach(lic => {
-                const endDateObj = new Date(lic.endDate);
-                const today = new Date();
-                
-                // Berechne Differenz in Tagen
-                const diffTime = endDateObj - today;
-                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        const todayStr = new Date().toISOString().split('T')[0];
 
-                let warningHtml = '';
-                if (diffDays <= 30 && diffDays >= 0) {
-                    warningHtml = `<span class="warning">⚠️ Läuft in ${diffDays} Tagen ab! (Mail-Trigger)</span>`;
-                } else if (diffDays < 0) {
-                    warningHtml = `<span class="warning">❌ Abgelaufen!</span>`;
-                }
+        // 1. Aufteilen in Aktiv und Abgelaufen anhand des Ablauf-Datums
+        let activeList = [];
+        let expiredList = [];
 
-                const div = document.createElement('div');
-                div.className = 'license-item';
-                div.innerHTML = `
-                    <div class="license-info">
-                        <h3>${lic.name}</h3>
-                        <div class="license-dates">
-                            Start: ${lic.startDate} | Ende: <strong>${lic.endDate}</strong><br>
-                            ${warningHtml}
-                        </div>
-                    </div>
-                    <button class="delete-btn" onclick="deleteLicense(${lic.id})">Löschen</button>
+        licenses.forEach(lic => {
+            // Nur filtern wenn Suchbegriff eingegeben wurde (Filtert nach Firmenname)
+            if (searchTerm && !String(lic.firma).toLowerCase().includes(searchTerm)) {
+                return;
+            }
+
+            if (lic.ende && lic.ende < todayStr) {
+                expiredList.push(lic);
+            } else {
+                activeList.push(lic);
+            }
+        });
+
+        // 2. Sortierung anwenden
+        activeList = sortData(activeList, sortConfig.active);
+        expiredList = sortData(expiredList, sortConfig.expired);
+
+        // 3. Tabellenzeilen bauen
+        function buildTableRows(list, container, isExpiredTable) {
+            if(list.length === 0) {
+                container.innerHTML = `<tr><td colspan="${columns.length + 2}" style="text-align:center; color:#999; padding:20px;">Keine Einträge vorhanden</td></tr>`;
+                return;
+            }
+
+            list.forEach(lic => {
+                const tr = document.createElement('tr');
+                tr.className = getRowClass(lic, isExpiredTable);
+
+                // Felder generieren
+                let cellsHtml = columns.map(col => {
+                    return `<td contenteditable="true" onblur="updateCell(${lic.id}, '${col.key}', this)" onkeydown="if(event.keyCode==13){event.preventDefault(); this.blur();}">\${lic[col.key] || ''}</td>`;
+                }).join('');
+
+                // Dropdown für manuelle Farbwahl
+                const optAuto = lic.customColor === 'auto' ? 'selected' : '';
+                const optGreen = lic.customColor === 'green' ? 'selected' : '';
+                const optYellow = lic.customColor === 'yellow' ? 'selected' : '';
+                const optOrange = lic.customColor === 'orange' ? 'selected' : '';
+                const optRed = lic.customColor === 'red' ? 'selected' : '';
+                const optGray = lic.customColor === 'gray' ? 'selected' : '';
+                const optNone = lic.customColor === 'none' ? 'selected' : '';
+
+                cellsHtml += `
+                    <td>
+                        <select class="color-select" onchange="changeCustomColor(${lic.id}, this)">
+                            <option value="auto" ${optAuto}>Automatisch</option>
+                            <option value="green" ${optGreen}>Grün</option>
+                            <option value="yellow" ${optYellow}>Gelb</option>
+                            <option value="orange" ${optOrange}>Orange</option>
+                            <option value="red" ${optRed}>Rot</option>
+                            <option value="gray" ${optGray}>Grau</option>
+                            <option value="none" ${optNone}>Keine Farbe</option>
+                        </select>
+                    </td>
+                    <td>
+                        <button class="action-btn" onclick="deleteEntry(${lic.id})">Löschen</button>
+                    </td>
                 `;
-                licenseList.appendChild(div);
+
+                // Fix für Vorlagen-Injektion in Vanilla JS
+                tr.innerHTML = cellsHtml.replace(/\${lic\[(.*?)] \|\| ''}/g, (match, key) => lic[key] || '');
+                container.appendChild(tr);
             });
         }
 
-        // Initiales Laden
-        renderLicenses();
-    </script>
+        buildTableRows(activeList, activeBody, false);
+        buildTableRows(expiredList, expiredBody, true);
+    }
+
+    // Initialisierung beim Laden der Seite
+    createHeaders();
+    renderAll();
+</script>
+
 </body>
 </html>
