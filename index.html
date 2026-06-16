@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lizenz- & Vertragsverwaltung</title>
+    <title>Lizenz- & Vertragsverwaltung mit Reitern</title>
     <style>
         body { font-family: 'Segoe UI', Arial, sans-serif; background-color: #f8f9fa; color: #333; margin: 0; padding: 20px; }
         .container { max-width: 100%; margin: 0 auto; }
@@ -18,14 +18,22 @@
         .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 25px; position: relative; }
         
         .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
-        .add-col-btn { background-color: #f1c40f; color: #333; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 13px; }
-        .add-col-btn:hover { background-color: #f39c12; }
+        .btn-header-action { background-color: #f1c40f; color: #333; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 13px; margin-left: 10px; }
+        .btn-header-action:hover { opacity: 0.9; }
+
+        /* REITER / TABS STYLING */
+        .tabs-bar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; border-bottom: 3px solid #34495e; padding-bottom: 8px; align-items: center; }
+        .tab-btn { background-color: #e2e3e5; color: #333; border: none; padding: 10px 20px; border-radius: 5px 5px 0 0; cursor: pointer; font-weight: bold; font-size: 14px; transition: all 0.2s; }
+        .tab-btn:hover { background-color: #d6dbdf; }
+        .tab-btn.active { background-color: #34495e; color: white; }
+        .tab-management { display: flex; gap: 5px; margin-left: auto; background: #eaeded; padding: 5px; border-radius: 5px; }
+        .btn-tab-ctrl { border: none; padding: 5px 10px; font-size: 12px; border-radius: 3px; cursor: pointer; font-weight: bold; }
 
         /* Dynamisches Formular-Grid */
         .form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin-bottom: 15px; }
         .form-group { display: flex; flex-direction: column; }
         .form-group label { font-size: 12px; font-weight: bold; margin-bottom: 4px; color: #555; }
-        .form-group input { padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; }
+        .form-group input, .form-group select { padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; height: 37px; box-sizing: border-box; }
         
         #submitBtn { background-color: #27ae60; color: white; border: none; padding: 12px 25px; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 14px; transition: background 0.2s; width: 100%; max-width: 300px; }
         #submitBtn:hover { opacity: 0.9; }
@@ -71,20 +79,30 @@
         </div>
     </div>
 
+    <div class="tabs-bar">
+        <div id="dynamicTabsContainer" style="display: flex; gap: 5px;"></div>
+        <button class="tab-btn" style="background-color: #2ecc71; color: white;" onclick="promptAddTab()">➕ Neuer Reiter</button>
+        
+        <div class="tab-management" id="tabManagementZone" style="display: none;">
+            <button class="btn-tab-ctrl" style="background-color: #e67e22; color:white;" onclick="promptRenameTab()">✏️ Aktuellen Reiter umbenennen</button>
+            <button class="btn-tab-ctrl" style="background-color: #e74c3c; color:white;" onclick="promptDeleteTab()">✖️ Aktuellen Reiter löschen</button>
+        </div>
+    </div>
+
     <div class="card">
         <div class="card-header">
             <h3>➕ Eintrag hinzufügen / bearbeiten</h3>
-            <button class="add-col-btn" onclick="promptAddColumn()">⚙️ Neue Spalte hinzufügen</button>
+            <button class="btn-header-action" onclick="promptAddColumn()">⚙️ Neue Spalte hinzufügen</button>
         </div>
         <form id="licenseForm">
             <div class="form-grid" id="dynamicFormGrid"></div>
             
-            <button type="submit" id="submitBtn">Eintrag speichern</button>
+            <button type="submit" id="submitBtn">Eintrag保存 (Speichern)</button>
             <button type="button" id="cancelEditBtn" style="display:none; padding: 12px 25px; margin-left: 10px; cursor: pointer;" onclick="cancelEdit()">Abbrechen</button>
         </form>
     </div>
 
-    <h2>Aktive Lizenzen</h2>
+    <h2 id="activeTitle">Aktive Lizenzen</h2>
     <div class="table-responsive">
         <table>
             <thead>
@@ -106,8 +124,6 @@
 </div>
 
 <script>
-    // 1. Spalten-Definition (Laden aus Speicher oder Standard setzen)
-    // Bezeichnung2 wurde entfernt.
     const defaultColumns = [
         { key: 'firma', label: 'Firma (Kunde)', type: 'text' },
         { key: 'auftrag', label: 'Auftrags-Nr.', type: 'number' },
@@ -125,8 +141,12 @@
         { key: 'status', label: 'Status', type: 'text' }
     ];
 
+    // Daten aus Speicher laden
     let columns = JSON.parse(localStorage.getItem('dyn_columns')) || defaultColumns;
-    let licenses = JSON.parse(localStorage.getItem('licenses_v3')) || JSON.parse(localStorage.getItem('licenses_v2')) || [];
+    let licenses = JSON.parse(localStorage.getItem('licenses_v4')) || JSON.parse(localStorage.getItem('licenses_v3')) || [];
+    let customTabs = JSON.parse(localStorage.getItem('dyn_tabs')) || ['Allgemein', 'Veeam', 'Adobe'];
+    
+    let activeTab = 'Alle'; // Standardmäßig "Alle" anzeigen
     let editModeId = null;
 
     let sortConfig = {
@@ -134,21 +154,138 @@
         expired: { key: 'firma', direction: 'asc' }
     };
 
-    const protectedKeys = ['firma', 'start', 'ende', 'dauer']; // Diese dürfen nicht gelöscht werden
+    const protectedKeys = ['firma', 'start', 'ende', 'dauer']; 
 
-    // 2. Initialisierung
     function init() {
+        renderTabsBar();
         renderDynamicForm();
         updateCustomerDatalist();
         createHeaders();
         renderAll();
     }
 
-    // 3. Formular dynamisch aufbauen
+    // ================= REITER LOGIK =================
+
+    function renderTabsBar() {
+        const container = document.getElementById('dynamicTabsContainer');
+        container.innerHTML = '';
+
+        // "Alle"-Tab (Immer vorhanden)
+        const btnAll = document.createElement('button');
+        btnAll.className = `tab-btn ${activeTab === 'Alle' ? 'active' : ''}`;
+        btnAll.innerText = '🌐 Alle';
+        btnAll.onclick = () => switchTab('Alle');
+        container.appendChild(btnAll);
+
+        // Eigene Custom-Tabs zeichnen
+        customTabs.forEach(tab => {
+            const btn = document.createElement('button');
+            btn.className = `tab-btn ${activeTab === tab ? 'active' : ''}`;
+            btn.innerText = tab;
+            btn.onclick = () => switchTab(tab);
+            container.appendChild(btn);
+        });
+
+        // Einstellungszone für Umbenennen/Löschen einblenden wenn nicht im "Alle"-Tab
+        const mgmtZone = document.getElementById('tabManagementZone');
+        if (activeTab === 'Alle' || activeTab === 'Allgemein') {
+            mgmtZone.style.display = 'none'; // "Alle" und "Allgemein" können nicht gelöscht werden
+        } else {
+            mgmtZone.style.display = 'flex';
+        }
+    }
+
+    function switchTab(tabName) {
+        activeTab = tabName;
+        renderTabsBar();
+        renderAll();
+        // Setzt das Formular-Kategorie-Feld automatisch auf den gerade gewählten Reiter
+        const selectElement = document.getElementById('licTab');
+        if(selectElement && tabName !== 'Alle') {
+            selectElement.value = tabName;
+        }
+    }
+
+    function promptAddTab() {
+        const name = prompt("Wie soll der neue Reiter heißen? (z.B. Microsoft, Hardware, etc.)");
+        if (!name) return;
+        const cleanName = name.trim();
+        if (customTabs.includes(cleanName) || cleanName === 'Alle') {
+            alert("Ein Reiter mit diesem Namen existiert bereits!");
+            return;
+        }
+        customTabs.push(cleanName);
+        localStorage.setItem('dyn_tabs', JSON.stringify(customTabs));
+        switchTab(cleanName);
+        renderDynamicForm(); // Aktualisiert das Dropdown im Formular
+    }
+
+    function promptRenameTab() {
+        if (activeTab === 'Alle' || activeTab === 'Allgemein') return;
+        const newName = prompt(`Wie soll der Reiter "${activeTab}" stattdessen heißen?`, activeTab);
+        if (!newName) return;
+        const cleanName = newName.trim();
+
+        if (customTabs.includes(cleanName) && cleanName !== activeTab) {
+            alert("Dieser Name wird bereits verwendet!");
+            return;
+        }
+
+        // Lizenzen im Hintergrund auf den neuen Namen umschreiben
+        licenses.forEach(lic => {
+            if (lic.tab === activeTab) lic.tab = cleanName;
+        });
+
+        const index = customTabs.indexOf(activeTab);
+        if (index !== -1) {
+            customTabs[index] = cleanName;
+        }
+
+        localStorage.setItem('dyn_tabs', JSON.stringify(customTabs));
+        localStorage.setItem('licenses_v4', JSON.stringify(licenses));
+        
+        activeTab = cleanName;
+        init();
+    }
+
+    function promptDeleteTab() {
+        if (activeTab === 'Alle' || activeTab === 'Allgemein') return;
+        
+        if (confirm(`Willst du den Reiter "${activeTab}" wirklich löschen?\n\nHINWEIS: Bestehende Lizenzen in diesem Reiter werden NICHT gelöscht, sondern automatisch in den Reiter "Allgemein" verschoben.`)) {
+            
+            // Lizenzen in "Allgemein" retten
+            licenses.forEach(lic => {
+                if (lic.tab === activeTab || !lic.tab) {
+                    lic.tab = 'Allgemein';
+                }
+            });
+
+            customTabs = customTabs.filter(t => t !== activeTab);
+            localStorage.setItem('dyn_tabs', JSON.stringify(customTabs));
+            localStorage.setItem('licenses_v4', JSON.stringify(licenses));
+            
+            activeTab = 'Alle';
+            init();
+        }
+    }
+
+
+    // ================= FORMULAR LOGIK =================
+
     function renderDynamicForm() {
         const grid = document.getElementById('dynamicFormGrid');
         grid.innerHTML = '';
 
+        // 1. Zuerst das feste Reiter-Dropdown-Feld einbauen
+        let tabOptions = customTabs.map(t => `<option value="${t}">${t}</option>`).join('');
+        grid.innerHTML += `
+            <div class="form-group" style="background: #ebf5fb; padding: 5px; border-radius: 4px;">
+                <label style="color:#2980b9;">📌 Reiter / Kategorie</label>
+                <select id="licTab">${tabOptions}</select>
+            </div>
+        `;
+
+        // 2. Alle anderen dynamischen Spalten zeichnen
         columns.forEach(col => {
             let extraAttributes = '';
             if (col.key === 'firma') extraAttributes = 'list="customerList" required';
@@ -163,7 +300,12 @@
             `;
         });
 
-        // Event-Listener für Auto-Datum neu setzen
+        // Vorauswahl des Dropdowns anpassen, falls man in einem spezifischen Tab ist
+        const selectElement = document.getElementById('licTab');
+        if(selectElement && activeTab !== 'Alle') {
+            selectElement.value = activeTab;
+        }
+
         setTimeout(() => {
             const startE = document.getElementById('start');
             const dauerE = document.getElementById('dauer');
@@ -172,7 +314,6 @@
         }, 100);
     }
 
-    // 4. Auto-Berechnung Enddatum
     function autoCalcEndDate() {
         const startInput = document.getElementById('start');
         const dauerInput = document.getElementById('dauer');
@@ -182,9 +323,8 @@
         if (!startInput.value || !dauerInput.value) return;
 
         let date = new Date(startInput.value);
-        if (isNaN(date.getTime())) return; // Ungültiges Datum
+        if (isNaN(date.getTime())) return;
 
-        // Sucht nach Zahl und Einheit (z.B. "1 Jahr", "3 Monate")
         const match = dauerInput.value.match(/(\d+)\s*(jahr|j|monat|m|tag|t)/i);
         if (match) {
             let num = parseInt(match[1]);
@@ -201,55 +341,44 @@
         }
     }
 
-    // 5. Kunden Auto-Vervollständigung
     function updateCustomerDatalist() {
         const dl = document.getElementById('customerList');
         dl.innerHTML = '';
-        // Holt alle einzigartigen Firmennamen aus dem Speicher
         const uniqueFirms = [...new Set(licenses.map(l => l.firma).filter(Boolean))];
-        uniqueFirms.forEach(f => {
-            dl.innerHTML += `<option value="${f}">`;
-        });
+        uniqueFirms.forEach(f => { dl.innerHTML += `<option value="${f}">`; });
     }
 
-    // 6. Spaltenverwaltung
+    // ================= SPALTEN VERWALTUNG =================
+
     function promptAddColumn() {
         const name = prompt("Wie soll die neue Spalte heißen?");
         if (!name) return;
-        const isDate = confirm("Soll das Feld ein Kalender-Datum sein? (Klicke OK für Datum, Abbrechen für normalen Text)");
+        const isDate = confirm("Soll das Feld ein Kalender-Datum sein? (OK = Datum, Abbrechen = Text)");
         const type = isDate ? "date" : "text";
-        const key = 'col_' + Date.now(); // Eindeutige ID für die Spalte
+        const key = 'col_' + Date.now();
         
         columns.push({ key, label: name, type });
-        saveColumns();
+        localStorage.setItem('dyn_columns', JSON.stringify(columns));
         init();
     }
 
     function removeColumn(key) {
         if (protectedKeys.includes(key)) {
-            alert("System-Spalten (Firma, Start-Datum, Ablauf-Datum, Dauer) können nicht gelöscht werden, da sonst die Automatik bricht.");
+            alert("System-Spalten können nicht gelöscht werden.");
             return;
         }
-        
         const colDef = columns.find(c => c.key === key);
         if (!colDef) return;
 
-        if (confirm(`Willst du die Spalte "${colDef.label}" wirklich im gesamten Dokument löschen? Alle Daten in dieser Spalte gehen dauerhaft verloren!`)) {
+        if (confirm(`Spalte "${colDef.label}" wirklich im gesamten Dokument löschen?`)) {
             columns = columns.filter(c => c.key !== key);
-            // Lösche die Daten auch aus den existierenden Einträgen
             licenses.forEach(lic => delete lic[key]);
-            
-            saveColumns();
+            localStorage.setItem('dyn_columns', JSON.stringify(columns));
             saveAndRender();
-            init(); // Baut alles neu auf
+            init();
         }
     }
 
-    function saveColumns() {
-        localStorage.setItem('dyn_columns', JSON.stringify(columns));
-    }
-
-    // 7. Tabellenköpfe bauen
     function createHeaders() {
         const headerActive = document.getElementById('headersActive');
         const headerExpired = document.getElementById('headersExpired');
@@ -257,8 +386,8 @@
         let headerHtml = columns.map(col => `
             <th>
                 <div class="th-content">
-                    <span class="th-text" onclick="handleSort('${col.key}', 'currentTable')" title="Nach ${col.label} sortieren">${col.label} ↕</span>
-                    <span class="remove-col" onclick="removeColumn('${col.key}')" title="Spalte löschen">✖</span>
+                    <span class="th-text" onclick="handleSort('${col.key}', 'currentTable')">${col.label} ↕</span>
+                    <span class="remove-col" onclick="removeColumn('${col.key}')">✖</span>
                 </div>
             </th>`).join('');
             
@@ -268,7 +397,8 @@
         headerExpired.innerHTML = headerHtml.replace(/currentTable/g, 'expired');
     }
 
-    // 8. Sortieren
+    // ================= SORTIERUNG UND DATEN =================
+
     function handleSort(key, tableType) {
         if (sortConfig[tableType].key === key) {
             sortConfig[tableType].direction = sortConfig[tableType].direction === 'asc' ? 'desc' : 'asc';
@@ -300,24 +430,24 @@
         });
     }
 
-    // 9. Speichern / Bearbeiten Logic
+    // Speichern / Hinzufügen
     document.getElementById('licenseForm').addEventListener('submit', function(e) {
         e.preventDefault();
+        const selectedTab = document.getElementById('licTab').value;
         
         if (editModeId) {
-            // Existierenden Eintrag aktualisieren
             const index = licenses.findIndex(l => l.id === editModeId);
             if(index !== -1) {
                 columns.forEach(col => {
                     const el = document.getElementById(col.key);
                     if(el) licenses[index][col.key] = el.value;
                 });
-                licenses[index].customColor = 'auto'; // Setzt Farbe auf Automatik zurück bei Erneuerung
+                licenses[index].tab = selectedTab; // Aktualisiere den Reiter
+                licenses[index].customColor = 'auto'; 
             }
-            cancelEdit(); // Beendet Edit-Modus
+            cancelEdit();
         } else {
-            // Neuen Eintrag anlegen
-            const newEntry = { id: Date.now(), customColor: 'auto' };
+            const newEntry = { id: Date.now(), customColor: 'auto', tab: selectedTab };
             columns.forEach(col => {
                 const el = document.getElementById(col.key);
                 if(el) newEntry[col.key] = el.value;
@@ -328,6 +458,9 @@
         saveAndRender();
         this.reset();
         updateCustomerDatalist();
+        // Bleibe im aktuell gewählten Tab, um Verwirrung zu vermeiden
+        const selectElement = document.getElementById('licTab');
+        if(selectElement && activeTab !== 'Alle') selectElement.value = activeTab;
     });
 
     function editEntry(id) {
@@ -336,13 +469,16 @@
         
         editModeId = id;
         
-        // Werte ins Formular laden
+        // Werte laden
         columns.forEach(col => {
             const el = document.getElementById(col.key);
             if(el) el.value = lic[col.key] || '';
         });
+        
+        // Reiter im Formular laden
+        const selectElement = document.getElementById('licTab');
+        if(selectElement) selectElement.value = lic.tab || 'Allgemein';
 
-        // UI anpassen
         const btn = document.getElementById('submitBtn');
         btn.innerText = "Änderungen speichern (Erneuern)";
         btn.style.backgroundColor = "#e67e22";
@@ -358,9 +494,11 @@
         btn.innerText = "Eintrag speichern";
         btn.style.backgroundColor = "#27ae60";
         document.getElementById('cancelEditBtn').style.display = "none";
+        
+        const selectElement = document.getElementById('licTab');
+        if(selectElement && activeTab !== 'Alle') selectElement.value = activeTab;
     }
 
-    // 10. Inline-Editing für die Tabelle
     function updateCell(id, key, element) {
         const value = element.innerText.trim();
         const index = licenses.findIndex(lic => lic.id === id);
@@ -379,22 +517,19 @@
     }
 
     function deleteEntry(id) {
-        if(confirm("Diesen Eintrag wirklich unwiderruflich löschen?")) {
+        if(confirm("Eintrag löschen?")) {
             licenses = licenses.filter(lic => lic.id !== id);
             saveAndRender();
         }
     }
 
     function saveAndRender() {
-        localStorage.setItem('licenses_v3', JSON.stringify(licenses));
+        localStorage.setItem('licenses_v4', JSON.stringify(licenses));
         renderAll();
     }
 
-    // 11. Tabellen zeichnen
     function getRowClass(lic, isExpired) {
-        if (lic.customColor && lic.customColor !== 'auto') {
-            return `row-${lic.customColor}`;
-        }
+        if (lic.customColor && lic.customColor !== 'auto') return `row-${lic.customColor}`;
         if (isExpired) return 'row-gray';
         if (!lic.ende) return 'row-none';
 
@@ -407,6 +542,8 @@
         return 'row-green';
     }
 
+    // ================= TABLE RENDERING =================
+
     function renderAll() {
         const searchTerm = document.getElementById('searchInput').value.toLowerCase();
         const activeBody = document.getElementById('activeTableBody');
@@ -415,13 +552,23 @@
         activeBody.innerHTML = '';
         expiredBody.innerHTML = '';
 
+        // Titel updaten, um anzuzeigen, in welchem Reiter man arbeitet
+        document.getElementById('activeTitle').innerText = `Aktive Lizenzen (${activeTab})`;
+
         const todayStr = new Date().toISOString().split('T')[0];
         let activeList = [];
         let expiredList = [];
 
         licenses.forEach(lic => {
+            // 1. Filter nach Suchbegriff
             if (searchTerm && !String(lic.firma || '').toLowerCase().includes(searchTerm)) return;
 
+            // 2. FILTER NACH AKTIVEM REITER (WICHTIG!)
+            // Wenn eine ältere Lizenz kein 'tab' Feld hat, fällt sie automatisch unter "Allgemein"
+            let licTab = lic.tab || 'Allgemein';
+            if (activeTab !== 'Alle' && licTab !== activeTab) return;
+
+            // 3. Trennung aktiv/abgelaufen
             if (lic.ende && lic.ende < todayStr) {
                 expiredList.push(lic);
             } else {
@@ -434,7 +581,7 @@
 
         function buildTableRows(list, container, isExpiredTable) {
             if(list.length === 0) {
-                container.innerHTML = `<tr><td colspan="${columns.length + 2}" style="text-align:center; color:#999; padding:20px;">Keine Einträge vorhanden</td></tr>`;
+                container.innerHTML = `<tr><td colspan="${columns.length + 2}" style="text-align:center; color:#999; padding:20px;">Keine Einträge in diesem Reiter vorhanden</td></tr>`;
                 return;
             }
 
@@ -442,7 +589,6 @@
                 const tr = document.createElement('tr');
                 tr.className = getRowClass(lic, isExpiredTable);
 
-                // Felder sicher als DOM-String aufbauen (Behebt den Bug mit der leeren Zeile!)
                 let cellsHtml = columns.map(col => {
                     let val = lic[col.key] || '';
                     return `<td contenteditable="true" onblur="updateCell(${lic.id}, '${col.key}', this)" onkeydown="if(event.keyCode==13){event.preventDefault(); this.blur();}">${val}</td>`;
@@ -460,7 +606,7 @@
                         </select>
                     </td>
                     <td class="action-cell">
-                        <button class="btn-edit" onclick="editEntry(${lic.id})" title="Daten oben in Maske laden">Erneuern / Bearbeiten</button>
+                        <button class="btn-edit" onclick="editEntry(${lic.id})">Erneuern / Bearbeiten</button>
                         <button class="btn-delete" onclick="deleteEntry(${lic.id})">Löschen</button>
                     </td>
                 `;
@@ -476,7 +622,6 @@
 
     // Start
     init();
-
 </script>
 </body>
 </html>
